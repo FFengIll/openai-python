@@ -603,6 +603,11 @@ class APIRequestor:
             _thread_context.session = _make_session()
             _thread_context.session_create_time = time.time()
         try:
+            proxies = None
+            if hasattr(_thread_context, "proxies"):
+                for k, v in _thread_context.proxies.items():
+                    if abs_url.startswith(k):
+                        proxies = v
             result = _thread_context.session.request(
                 method,
                 abs_url,
@@ -611,7 +616,7 @@ class APIRequestor:
                 files=files,
                 stream=stream,
                 timeout=request_timeout if request_timeout else TIMEOUT_SECS,
-                proxies=_thread_context.session.proxies,
+                proxies=proxies or _thread_context.session.proxies,
             )
         except requests.exceptions.Timeout as e:
             raise error.Timeout("Request timed out: {}".format(e)) from e
@@ -790,7 +795,7 @@ class AioHTTPSession(AsyncContextManager):
             self._should_close_session = True
 
         return self._session
-    
+
     async def __aexit__(self, exc_type, exc_value, traceback):
         if self._session is None:
             raise RuntimeError("Session is not initialized")
